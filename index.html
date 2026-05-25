@@ -136,15 +136,24 @@
 <body>
   <main class="container">
     <h1>瓦洛兰特随机器</h1>
-    <p class="subtitle">一键生成5人特工+枪械组合 + 最低击杀惩罚</p>
+    <p class="subtitle">5人随机：特工整局固定，武器每回合刷新 + 最低击杀惩罚</p>
 
     <section class="panel">
-      <h2>5人随机组合（特工 + 枪械）</h2>
-      <button id="teamBtn" class="btn primary">随机5人本回合组合</button>
-      <div id="teamResult" class="result-card" aria-live="polite">
-        <p class="placeholder">点击按钮后生成5个人的随机组合</p>
+      <h2>每局一次随机5人特工</h2>
+      <button id="agentTeamBtn" class="btn accent">随机本局5人特工</button>
+      <div id="agentTeamResult" class="result-card" aria-live="polite">
+        <p class="placeholder">点击按钮后锁定本局5人特工</p>
       </div>
-      <p class="hint">规则：每次会生成5名玩家的随机特工和随机枪械组合。</p>
+      <p id="agentHint" class="hint">提示：每局只能抽一次，想重抽请点“新开一局”。</p>
+    </section>
+
+    <section class="panel">
+      <h2>每回合随机5人武器（基于已锁定特工）</h2>
+      <button id="weaponTeamBtn" class="btn primary">随机本回合5人武器</button>
+      <div id="teamResult" class="result-card" aria-live="polite">
+        <p class="placeholder">先抽本局特工，再点击按钮生成本回合5人组合</p>
+      </div>
+      <p class="hint">规则：特工整局不变，武器每回合刷新。</p>
     </section>
 
     <section class="panel">
@@ -260,14 +269,19 @@
       }
     ];
 
-    const teamBtn = document.getElementById("teamBtn");
+    const agentTeamBtn = document.getElementById("agentTeamBtn");
+    const weaponTeamBtn = document.getElementById("weaponTeamBtn");
     const punishBtn = document.getElementById("punishBtn");
     const resetBtn = document.getElementById("resetBtn");
+    const agentTeamResult = document.getElementById("agentTeamResult");
     const teamResult = document.getElementById("teamResult");
     const punishResult = document.getElementById("punishResult");
+    const agentHint = document.getElementById("agentHint");
     const roundInfo = document.getElementById("roundInfo");
 
     let roundCount = 0;
+    let agentChosen = false;
+    let lockedAgents = [];
 
     function pickRandom(list) {
       const idx = Math.floor(Math.random() * list.length);
@@ -283,19 +297,41 @@
       return pool.slice(0, count);
     }
 
-    function drawTeamCombo() {
-      roundCount += 1;
-      const selectedAgents = pickUniqueAgents(5);
-      let html = "";
+    function drawAgentsOnce() {
+      if (agentChosen) return;
+      lockedAgents = pickUniqueAgents(5);
+      agentChosen = true;
+      agentTeamBtn.disabled = true;
+      agentHint.textContent = "本局特工已锁定，如需重置请点击“新开一局”。";
 
+      let html = "";
       for (let i = 0; i < 5; i += 1) {
         const playerNo = i + 1;
-        const agent = selectedAgents[i];
+        const agent = lockedAgents[i];
+        html += `
+          <p class="result-title">玩家${playerNo}：${agent.zh} (${agent.en})</p>
+          <p class="result-meta">定位：${agent.role}</p>
+          ${i < 4 ? "<hr style='border-color:#374151; border-style:dashed; border-width:1px 0 0;'>" : ""}
+        `;
+      }
+      agentTeamResult.innerHTML = html;
+    }
+
+    function drawRoundWeapons() {
+      if (!agentChosen) {
+        teamResult.innerHTML = `<p class="placeholder">请先点击“随机本局5人特工”。</p>`;
+        return;
+      }
+
+      roundCount += 1;
+      let html = "";
+      for (let i = 0; i < 5; i += 1) {
+        const playerNo = i + 1;
+        const agent = lockedAgents[i];
         const weapon = pickRandom(weapons);
         html += `
           <p class="result-title">玩家${playerNo}：${agent.zh} (${agent.en})</p>
           <p class="result-meta">定位：${agent.role} ｜ 枪械：${weapon.name}</p>
-          <p>武器分类：${weapon.category}</p>
           <p>${weapon.desc}</p>
           ${i < 4 ? "<hr style='border-color:#374151; border-style:dashed; border-width:1px 0 0;'>" : ""}
         `;
@@ -315,13 +351,19 @@
     }
 
     function resetGame() {
+      agentChosen = false;
+      lockedAgents = [];
+      agentTeamBtn.disabled = false;
+      agentHint.textContent = "提示：每局只能抽一次，想重抽请点“新开一局”。";
       roundCount = 0;
       roundInfo.textContent = `当前回合：${roundCount}`;
-      teamResult.innerHTML = `<p class="placeholder">点击按钮后生成5个人的随机组合</p>`;
+      agentTeamResult.innerHTML = `<p class="placeholder">点击按钮后锁定本局5人特工</p>`;
+      teamResult.innerHTML = `<p class="placeholder">先抽本局特工，再点击按钮生成本回合5人组合</p>`;
       punishResult.innerHTML = `<p class="placeholder">点击按钮后显示本回合惩罚</p>`;
     }
 
-    teamBtn.addEventListener("click", drawTeamCombo);
+    agentTeamBtn.addEventListener("click", drawAgentsOnce);
+    weaponTeamBtn.addEventListener("click", drawRoundWeapons);
     punishBtn.addEventListener("click", drawPunishment);
     resetBtn.addEventListener("click", resetGame);
   </script>
