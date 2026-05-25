@@ -1,0 +1,259 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>瓦洛兰特随机特工与枪械</title>
+  <style>
+    :root {
+      --bg: #0f172a;
+      --panel: #111827;
+      --text: #e5e7eb;
+      --muted: #9ca3af;
+      --primary: #22c55e;
+      --accent: #3b82f6;
+      --reset: #f59e0b;
+      --border: #374151;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: "Microsoft YaHei", "PingFang SC", system-ui, sans-serif;
+      background: radial-gradient(circle at top, #1e293b, var(--bg) 55%);
+      color: var(--text);
+    }
+
+    .container {
+      width: min(860px, 92vw);
+      margin: 36px auto;
+      display: grid;
+      gap: 18px;
+    }
+
+    h1,
+    h2,
+    p {
+      margin: 0;
+    }
+
+    h1 {
+      font-size: clamp(1.6rem, 2.2vw + 1rem, 2.4rem);
+    }
+
+    .subtitle {
+      color: var(--muted);
+    }
+
+    .panel {
+      border: 1px solid var(--border);
+      background: #111827;
+      border-radius: 14px;
+      padding: 18px;
+      display: grid;
+      gap: 12px;
+    }
+
+    .btn {
+      border: 0;
+      border-radius: 10px;
+      color: white;
+      font-weight: 700;
+      padding: 12px 14px;
+      cursor: pointer;
+      transition: transform 0.15s ease, filter 0.15s ease, opacity 0.15s ease;
+    }
+
+    .btn:hover {
+      filter: brightness(1.06);
+    }
+
+    .btn:active {
+      transform: translateY(1px);
+    }
+
+    .btn:disabled {
+      opacity: 0.55;
+      cursor: not-allowed;
+    }
+
+    .primary {
+      background: var(--primary);
+    }
+
+    .accent {
+      background: var(--accent);
+    }
+
+    .reset {
+      background: var(--reset);
+      color: #111827;
+    }
+
+    .result-card {
+      border: 1px dashed var(--border);
+      border-radius: 10px;
+      padding: 12px;
+      line-height: 1.65;
+      background: rgba(255, 255, 255, 0.02);
+    }
+
+    .placeholder {
+      color: var(--muted);
+    }
+
+    .hint,
+    .round-info {
+      color: var(--muted);
+      font-size: 0.95rem;
+    }
+
+    .result-title {
+      font-size: 1.12rem;
+      font-weight: 800;
+    }
+
+    .result-meta {
+      color: #93c5fd;
+      font-size: 0.95rem;
+    }
+  </style>
+</head>
+<body>
+  <main class="container">
+    <h1>瓦洛兰特随机器</h1>
+    <p class="subtitle">一键随机每回合枪械 + 每局一次随机特工</p>
+
+    <section class="panel">
+      <h2>每回合随机枪械</h2>
+      <button id="weaponBtn" class="btn primary">随机本回合枪械</button>
+      <div id="weaponResult" class="result-card" aria-live="polite">
+        <p class="placeholder">点击按钮后显示本回合武器</p>
+      </div>
+    </section>
+
+    <section class="panel">
+      <h2>每局一次随机特工</h2>
+      <button id="agentBtn" class="btn accent">随机本局特工</button>
+      <div id="agentResult" class="result-card" aria-live="polite">
+        <p class="placeholder">本局还未抽取特工</p>
+      </div>
+      <p id="agentHint" class="hint">提示：每局只能抽一次，想重抽请点“新开一局”。</p>
+    </section>
+
+    <section class="panel control-panel">
+      <button id="resetBtn" class="btn reset">新开一局（重置特工）</button>
+      <p id="roundInfo" class="round-info">当前回合：0</p>
+    </section>
+  </main>
+  <script>
+    const weapons = [
+      { category: "手枪 (Sidearms)", name: "经典 (Classic)", desc: "免费初始武器，左键精准，右键三连发（近距离强劲）。" },
+      { category: "手枪 (Sidearms)", name: "短枪 (Shorty)", desc: "锯短式霰弹手枪，近战极具威胁。" },
+      { category: "手枪 (Sidearms)", name: "狂暴 (Frenzy)", desc: "全自动手枪，适合强起局近距离速杀。" },
+      { category: "手枪 (Sidearms)", name: "幽魂 (Ghost)", desc: "消音手枪，精准度高，通常是手枪局的主力。" },
+      { category: "手枪 (Sidearms)", name: "警长 (Sheriff)", desc: "高伤害左轮，能一枪爆头击杀中近距离的带甲敌人。" },
+      { category: "冲锋枪 (SMGs)", name: "刺针 (Stinger)", desc: "射速极快，近距离爆发高，但衰减大。" },
+      { category: "冲锋枪 (SMGs)", name: "恶灵 (Spectre)", desc: "全能型冲锋枪，配有消音器，是半买局的最佳选择。" },
+      { category: "步枪 (Rifles)", name: "斗牛犬 (Bulldog)", desc: "最便宜的步枪，开镜模式下为三连发。" },
+      { category: "步枪 (Rifles)", name: "捍卫者 (Guardian)", desc: "半自动步枪，精准度极高，适合追求爆头的选手。" },
+      { category: "步枪 (Rifles)", name: "幻象 (Phantom)", desc: "带消音器，射速快且后坐力好控，近距离伤害极高。" },
+      { category: "步枪 (Rifles)", name: "狂徒 (Vandal)", desc: "对标 AK，无论距离多远一发爆头必杀，是人气最高的武器。" },
+      { category: "狙击枪 (Snipers)", name: "飞将 (Marshal)", desc: "轻型狙击，开镜快且移动准星稳，不带甲敌人一枪身体毙命。" },
+      { category: "狙击枪 (Snipers)", name: "逃犯 (Outlaw)", desc: "半自动双管狙击，专门克制轻盾（一枪 140 伤害）。" },
+      { category: "狙击枪 (Snipers)", name: "冥驹 (Operator)", desc: "俗称“大狙”，除了脚部外，一枪击中身体任何部位皆可毙命。" },
+      { category: "霰弹枪 (Shotguns)", name: "重炮 (Bucky)", desc: "泵动式散弹，价格低廉，适合在狭窄地形防守。" },
+      { category: "霰弹枪 (Shotguns)", name: "判官 (Judge)", desc: "全自动霰弹枪，近距离泼水火力极猛。" },
+      { category: "重型武器 (Machine Guns)", name: "战神 (Ares)", desc: "价格亲民的机枪，射速随持续射击而增加。" },
+      { category: "重型武器 (Machine Guns)", name: "奥丁 (Odin)", desc: "终极火力压制武器，穿透力极强，配合侦察技能扫射墙体威力巨大。" }
+    ];
+
+    const agents = [
+      { zh: "炼狱", en: "Brimstone", role: "控场者" },
+      { zh: "蝰蛇", en: "Viper", role: "控场者" },
+      { zh: "幽影", en: "Omen", role: "控场者" },
+      { zh: "奇乐", en: "Killjoy", role: "守卫" },
+      { zh: "零", en: "Cypher", role: "守卫" },
+      { zh: "猎枭", en: "Sova", role: "先锋" },
+      { zh: "贤者", en: "Sage", role: "守卫" },
+      { zh: "不死鸟", en: "Phoenix", role: "决斗者" },
+      { zh: "捷风", en: "Jett", role: "决斗者" },
+      { zh: "芮娜", en: "Reyna", role: "决斗者" },
+      { zh: "雷兹", en: "Raze", role: "决斗者" },
+      { zh: "铁臂", en: "Breach", role: "先锋" },
+      { zh: "斯凯", en: "Skye", role: "先锋" },
+      { zh: "夜露", en: "Yoru", role: "决斗者" },
+      { zh: "星礈", en: "Astra", role: "控场者" },
+      { zh: "K/O", en: "KAY/O", role: "先锋" },
+      { zh: "尚勃勒", en: "Chamber", role: "守卫" },
+      { zh: "霓虹", en: "Neon", role: "决斗者" },
+      { zh: "黑梦", en: "Fade", role: "先锋" },
+      { zh: "海神", en: "Harbor", role: "控场者" },
+      { zh: "盖可", en: "Gekko", role: "先锋" },
+      { zh: "钢锁", en: "Deadlock", role: "守卫" },
+      { zh: "壹决", en: "Iso", role: "决斗者" },
+      { zh: "暮蝶", en: "Clove", role: "控场者" },
+      { zh: "维斯", en: "Vyse", role: "守卫" },
+      { zh: "钛狐", en: "Tejo", role: "先锋" },
+      { zh: "幻棱", en: "Waylay", role: "决斗者" },
+      { zh: "禁灭", en: "Veto", role: "守卫" },
+      { zh: "迷核", en: "Miks", role: "控场者" }
+    ];
+
+    const weaponBtn = document.getElementById("weaponBtn");
+    const agentBtn = document.getElementById("agentBtn");
+    const resetBtn = document.getElementById("resetBtn");
+    const weaponResult = document.getElementById("weaponResult");
+    const agentResult = document.getElementById("agentResult");
+    const agentHint = document.getElementById("agentHint");
+    const roundInfo = document.getElementById("roundInfo");
+
+    let roundCount = 0;
+    let agentChosen = false;
+
+    function pickRandom(list) {
+      const idx = Math.floor(Math.random() * list.length);
+      return list[idx];
+    }
+
+    function drawWeapon() {
+      roundCount += 1;
+      const weapon = pickRandom(weapons);
+      weaponResult.innerHTML = `
+        <p class="result-title">${weapon.name}</p>
+        <p class="result-meta">分类：${weapon.category}</p>
+        <p>${weapon.desc}</p>
+      `;
+      roundInfo.textContent = `当前回合：${roundCount}`;
+    }
+
+    function drawAgentOnce() {
+      if (agentChosen) return;
+      const agent = pickRandom(agents);
+      agentChosen = true;
+      agentBtn.disabled = true;
+      agentHint.textContent = "本局特工已锁定，如需重置请点击“新开一局”。";
+      agentResult.innerHTML = `
+        <p class="result-title">${agent.zh} (${agent.en})</p>
+        <p class="result-meta">定位：${agent.role}</p>
+        <p>这局就拿他/她/它上分！</p>
+      `;
+    }
+
+    function resetGame() {
+      agentChosen = false;
+      agentBtn.disabled = false;
+      agentResult.innerHTML = `<p class="placeholder">本局还未抽取特工</p>`;
+      agentHint.textContent = "提示：每局只能抽一次，想重抽请点“新开一局”。";
+    }
+
+    weaponBtn.addEventListener("click", drawWeapon);
+    agentBtn.addEventListener("click", drawAgentOnce);
+    resetBtn.addEventListener("click", resetGame);
+  </script>
+</body>
+</html>
